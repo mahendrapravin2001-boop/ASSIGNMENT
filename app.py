@@ -360,7 +360,7 @@ else:
         m["lon"] = m["state"].map(lambda s: STATE_XY[s][1])
         fig = px.scatter_map(m, lat="lat", lon="lon", size="pop_m", color="income_median", hover_name="state",
                              hover_data={"pop_m": ":.2f", "income_median": ":,.0f", "lat": False, "lon": False},
-                             size_max=48, zoom=4.4, center=dict(lat=4.3, lon=109.5),
+                             size_max=34, zoom=3.5, center=dict(lat=4.2, lon=109.3),
                              color_continuous_scale="Viridis", map_style="carto-positron",
                              title=f"Chart 7 · Population (bubble size) and median income (colour), {year}",
                              labels={"pop_m": "Population (million)", "income_median": "Median income (RM)"})
