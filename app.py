@@ -156,6 +156,10 @@ def summary_row(items):
                  border=True, help=help_)
 
 
+def insight(text):
+    st.info(f"💡 **Key insight:** {text}")
+
+
 def objective(text):
     st.markdown(f'<div class="objective"><b>Objective:</b> {text}</div>', unsafe_allow_html=True)
 
@@ -189,6 +193,11 @@ if page.startswith("1"):
         ("Fastest income growth", short(g_med.idxmax()), f"{g_med.max():+.1f}%", "State with the highest % rise in median income"),
         ("Slowest income growth", short(g_med.idxmin()), f"{g_med.min():+.1f}%", "State with the lowest % change in median income"),
     ])
+
+    gi, ge = pct(a.income_median.mean(), b.income_median.mean()), pct(a.expenditure.mean(), b.expenditure.mean())
+    insight(f"Median income grew {gi:+.1f}% and expenditure {ge:+.1f}% between {Y0} and {Y1}, "
+            f"{'at a similar pace' if abs(gi - ge) <= 1 else ('with spending growing faster' if ge > gi else 'with income growing faster')}. "
+            f"{short(g_med.idxmax())} grew fastest in income ({g_med.max():+.1f}%) and {short(g_med.idxmin())} slowest ({g_med.min():+.1f}%).")
 
     c1, c2 = st.columns([3, 2])
     with c1:
@@ -264,6 +273,11 @@ elif page.startswith("2"):
         (f"Highest ratio ({year})", f"{top.spend_ratio:.0f}%", top.parlimen, "Seat where spending takes the biggest share of income", "off"),
         ("Spending outgrew income", f"{faster} / {len(chg)}", None, "Number of seats whose expenditure growth beat median-income growth"),
     ])
+
+    r_ratio = s_y["income_median"].corr(s_y["spend_ratio"])
+    insight(f"Spending follows income closely (r = {r_all:.2f}), but lower-income seats spend a larger share of income "
+            f"({'r = ' + format(r_ratio, '.2f') + ' between income and spending ratio' if r_ratio == r_ratio else 'ratio varies by seat'}; "
+            f"up to {top.spend_ratio:.0f}% in {top.parlimen}, {year}).")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -351,6 +365,16 @@ else:
         (f"Aged 65+ in {Y1}", f"{old_share[Y1]:.1f}%", f"{old_share[Y1] - old_share[Y0]:+.1f} pts vs {Y0}", "Share of population aged 65 and above", "inverse"),
     ])
 
+    inc_g = growth(st_tab, "income_median")
+    gd = pd.concat([p_g.rename("pop_growth"), inc_g.rename("inc_growth"), pp[Y1].rename("pop")], axis=1).dropna().reset_index()
+    gd["pop_m"] = gd["pop"] / 1000
+    r9 = gd["pop_growth"].corr(gd["inc_growth"]) if len(gd) > 2 else float("nan")
+    core = [x for x in ["Selangor", "W.P. Kuala Lumpur", "W.P. Putrajaya"] if x in pp.index]
+    core_share = pp.loc[core, Y1].sum() / pp[Y1].sum() * 100 if core else float("nan")
+    insight((f"{core_share:.0f}% of the selected population lives in Selangor, W.P. Kuala Lumpur and W.P. Putrajaya" if core else
+             f"{short(pp[Y1].idxmax())} is the most populous selected state")
+            + (f", and population growth is {'not associated' if abs(r9) < 0.3 else 'associated'} with income growth (r = {r9:.2f})." if r9 == r9 else "."))
+
     c1, c2 = st.columns([3, 2])
     with c1:
         m = st_tab[st_tab.year == year].merge(
@@ -386,9 +410,6 @@ else:
                           yaxis_title="Age group")
         st.plotly_chart(style(fig, 470), width='stretch')
 
-    inc_g = growth(st_tab, "income_median")
-    gd = pd.concat([p_g.rename("pop_growth"), inc_g.rename("inc_growth"), pp[Y1].rename("pop")], axis=1).dropna().reset_index()
-    gd["pop_m"] = gd["pop"] / 1000
     fig = px.scatter(gd, x="pop_growth", y="inc_growth", size="pop_m", color="state", text="state",
                      size_max=45, title="Chart 9 · Population growth vs median-income growth by state, 2022→2024",
                      labels={"pop_growth": "Population growth (%)", "inc_growth": "Median income growth (%)",
@@ -397,7 +418,6 @@ else:
     for i, tr in enumerate(fig.data):          # stagger labels so they overlap less
         tr.textposition = positions[i % 4]
     fig.update_layout(showlegend=False)
-    r9 = gd["pop_growth"].corr(gd["inc_growth"]) if len(gd) > 2 else float("nan")
     if len(gd) > 2:
         k9, c9 = np.polyfit(gd.pop_growth, gd.inc_growth, 1)
         xs = np.array([gd.pop_growth.min(), gd.pop_growth.max()])
@@ -426,6 +446,10 @@ else:
     ], "Population and income are geographically concentrated around urban centres where jobs and industry are. "
        "A shift in the age structure towards older groups (population ageing) increases the dependency burden and "
        "can slow income growth in the long run. Correlation between growth rates does not prove that one causes the other.")
+
+st.markdown("---")
+st.markdown('<p class="small">Data: household income, household expenditure (by parliamentary seat) and population '
+            '(by state), 2022 and 2024. Built with Streamlit and Plotly.</p>', unsafe_allow_html=True)
 
 st.markdown("---")
 st.markdown('<p class="small">Data: household income, household expenditure (by parliamentary seat) and population '
